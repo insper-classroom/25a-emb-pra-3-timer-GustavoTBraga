@@ -25,7 +25,7 @@ volatile absolute_time_t echo_end_time;
 volatile bool echo_timeout = false;
 volatile alarm_id_t echo_timeout_alarm = -1;
 
-bool sensor_conectado = true;
+volatile bool sensor_conectado = true;
 
 datetime_t current_time = {
     .year = 2025,
