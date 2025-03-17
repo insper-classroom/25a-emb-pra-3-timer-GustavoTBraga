@@ -25,6 +25,8 @@ volatile absolute_time_t echo_end_time;
 volatile bool echo_timeout = false;
 volatile alarm_id_t echo_timeout_alarm = -1;
 
+bool sensor_conectado = true;
+
 datetime_t current_time = {
     .year = 2025,
     .month = 3,
@@ -53,6 +55,7 @@ void echo_isr(uint gpio, uint32_t events) {
         if (events & GPIO_IRQ_EDGE_RISE) {
             echo_start_time = get_absolute_time();
             echo_recebido = false;
+            sensor_conectado = true;
             
             if (echo_timeout_alarm >= 0) {
                 cancel_alarm(echo_timeout_alarm);
@@ -76,6 +79,7 @@ void echo_isr(uint gpio, uint32_t events) {
 void disparar_medicao() {
     echo_recebido = false;
     echo_timeout = false;
+    sensor_conectado = gpio_get(ECHO_PIN);
     
     gpio_put(TRIGGER_PIN, 1);
     sleep_us(TRIGGER_PULSE_US);
@@ -113,8 +117,10 @@ void update_rtc_time() {
 
 void print_medicao(float distancia) {
     rtc_get_datetime(&current_time);
-    
-    if (echo_timeout) {
+
+    if (!sensor_conectado) {
+        printf("%02d:%02d:%02d - Falha (Sensor desconectado)\n", current_time.hour, current_time.min, current_time.sec);
+    } else if (echo_timeout) {
         printf("%02d:%02d:%02d - Falha\n", current_time.hour, current_time.min, current_time.sec);
     } else {
         printf("%02d:%02d:%02d - %.0f cm\n", current_time.hour, current_time.min, current_time.sec, distancia);
@@ -138,7 +144,7 @@ int main() {
     
     gpio_set_irq_enabled_with_callback(ECHO_PIN, GPIO_IRQ_EDGE_RISE | GPIO_IRQ_EDGE_FALL, true, &echo_isr);
     
-    char cmd_buffer[20] = {0};
+    char cmd_buffer[10] = {0};
     int cmd_index = 0;
     absolute_time_t ultima_medicao_tempo = get_absolute_time();
     absolute_time_t rtc_update_time = get_absolute_time();
@@ -175,7 +181,7 @@ int main() {
                     int echo_duration_us = absolute_time_diff_us(echo_start_time, echo_end_time);
                     float distancia_cm = calcula_distancia_cm(echo_duration_us);
                     print_medicao(distancia_cm);
-                } else if (echo_timeout) {
+                } else if (echo_timeout || !sensor_conectado) {
                     print_medicao(0);
                 }
                 
