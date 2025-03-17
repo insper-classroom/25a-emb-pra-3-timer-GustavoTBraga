@@ -19,7 +19,6 @@ const int TRIGGER_PIN = 14;
 const int TRIGGER_PULSE_US = 10;
 const int ECHO_TIMEOUT_US = 30000;
 
-volatile bool sistema_ativo = false;
 volatile bool echo_recebido = false;
 volatile absolute_time_t echo_start_time;
 volatile absolute_time_t echo_end_time;
@@ -83,12 +82,12 @@ void disparar_medicao() {
     gpio_put(TRIGGER_PIN, 0);
 }
 
-void verifica_comando(char *cmd) {
+void verifica_comando(const char *cmd, bool *sistema_ativo) {
     if (strcmp(cmd, "start") == 0 || strcmp(cmd, "START") == 0) {
-        sistema_ativo = true;
+        *sistema_ativo = true;
         printf("Sistema iniciado. Medindo distancia.\n");
     } else if (strcmp(cmd, "stop") == 0 || strcmp(cmd, "STOP") == 0) {
-        sistema_ativo = false;
+        *sistema_ativo = false;
         printf("Sistema pausado.\n");
     } else {
         printf("Comando desconhecido: %s\n", cmd);
@@ -143,6 +142,8 @@ int main() {
     int cmd_index = 0;
     absolute_time_t ultima_medicao_tempo = get_absolute_time();
     absolute_time_t rtc_update_time = get_absolute_time();
+
+    bool sistema_ativo = false;
     
     while (true) {
         int c = getchar_timeout_us(1000);
@@ -156,7 +157,7 @@ int main() {
             if (c == '\r' || c == '\n') {
                 if (cmd_index > 0) {
                     cmd_buffer[cmd_index] = '\0';
-                    verifica_comando(cmd_buffer);
+                    verifica_comando(cmd_buffer, &sistema_ativo);
                     cmd_index = 0;
                 }
             } else if (cmd_index < sizeof(cmd_buffer) - 1) {
